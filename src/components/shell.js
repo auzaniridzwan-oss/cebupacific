@@ -1,21 +1,16 @@
 /**
- * Cebu Pacific eagle + wordmark (inline SVG).
+ * Cebu Pacific logo mark.
  * @returns {string}
  */
-export function cebLogoSvg() {
+export function cebLogoMarkup() {
   return `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="180" height="40" aria-hidden="true">
-    <defs>
-      <linearGradient id="cebEagle" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#06A7E0"/>
-        <stop offset="50%" stop-color="#039482"/>
-        <stop offset="100%" stop-color="#2574BB"/>
-      </linearGradient>
-    </defs>
-    <path fill="url(#cebEagle)" d="M8 28c6-14 18-22 32-22 4 0 8 1 11 3-8 2-14 7-18 14 6-2 12-2 18 0-10 8-22 12-34 11l-9-6z"/>
-    <path fill="#06A7E0" d="M36 12c4-3 9-5 15-5 2 2 3 5 3 8-5-1-10 0-15 2l-3-5z"/>
-    <text x="58" y="32" font-family="Nunito, system-ui, sans-serif" font-size="22" font-weight="800" fill="#2574BB">cebu pacific</text>
-  </svg>`;
+  <img
+    src="/images/ceb_logo_email.png"
+    alt="Cebu Pacific"
+    width="180"
+    height="48"
+    class="h-10 w-auto object-contain"
+  />`;
 }
 
 /**
@@ -53,7 +48,7 @@ export function renderShellHeader(opts) {
     <div class="bg-white border-b border-ceb-border">
       <div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-4 py-3">
         <button type="button" id="ceb-logo-btn" class="flex items-center text-left" aria-label="Home">
-          ${cebLogoSvg()}
+          ${cebLogoMarkup()}
         </button>
         <nav class="flex flex-wrap items-center gap-4 md:gap-8 text-sm" aria-label="Primary">
           <a href="#/home" data-route="HOME" class="${navCls('HOME')}">Book</a>
