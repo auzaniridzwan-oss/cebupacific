@@ -50,9 +50,12 @@ let currentSeatMap = null;
 /** @type {string | null} */
 let selectedSeatId = null;
 
-const BOOKING_ABANDON_MS = 5 * 60 * 1000;
+const BOOKING_ABANDON_MS = 3 * 60 * 1000;
+const DEMO_IAM_REDIRECT_MS = 10 * 1000;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let bookingAbandonTimer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let demoIamTimer = null;
 /** @type {{ origin: string, destination: string, depart: string, return: string } | null} */
 let pendingAbandonProps = null;
 /** Whether an in-progress booking can still emit `ceb_booking_abandoned`. */
@@ -72,7 +75,7 @@ function clearBookingAbandonTimer() {
 }
 
 /**
- * Start/restart the 5-minute abandonment window from flight search start.
+ * Start/restart the 3-minute abandonment window from flight search start.
  * @param {{ origin_code: string, destination_code: string, depart_date: string, return_date: string }} search
  * @returns {void}
  */
@@ -100,6 +103,32 @@ function scheduleBookingAbandonTimer(search) {
     BrazeManager.requestImmediateDataFlush();
     AppLogger.info('[SDK]', 'ceb_booking_abandoned fired after inactivity', props);
   }, BOOKING_ABANDON_MS);
+}
+
+/**
+ * Cancel a pending post-booking demo IAM redirect.
+ * @returns {void}
+ */
+function clearDemoIamTimer() {
+  if (demoIamTimer != null) {
+    clearTimeout(demoIamTimer);
+    demoIamTimer = null;
+  }
+}
+
+/**
+ * After booking completes, wait 10s then go home and fire `ceb_demo_iam`.
+ * @returns {void}
+ */
+function scheduleDemoIamRedirect() {
+  clearDemoIamTimer();
+  demoIamTimer = setTimeout(() => {
+    demoIamTimer = null;
+    navigate(ROUTES.HOME);
+    BrazeManager.logCustomEvent('ceb_demo_iam', {});
+    BrazeManager.requestImmediateDataFlush();
+    AppLogger.info('[SDK]', 'ceb_demo_iam fired after booking completed');
+  }, DEMO_IAM_REDIRECT_MS);
 }
 
 /**
@@ -473,6 +502,7 @@ function bindRouteHandlers() {
       clearBookingAbandonTimer();
       logBookingCompletedEvent(code);
       syncBookingCustomAttributes();
+      scheduleDemoIamRedirect();
       AppLogger.info('[UI]', 'Mock payment completed', { code });
       navigate(ROUTES.COMPLETE);
     });
