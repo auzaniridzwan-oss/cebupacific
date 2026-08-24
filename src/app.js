@@ -471,11 +471,33 @@ function bindRouteHandlers() {
       const code = generateBookingCode();
       StorageManager.set('booking_code', code);
       clearBookingAbandonTimer();
+      logBookingCompletedEvent(code);
       syncBookingCustomAttributes();
       AppLogger.info('[UI]', 'Mock payment completed', { code });
       navigate(ROUTES.COMPLETE);
     });
   }
+}
+
+/**
+ * @param {string} bookingCode
+ * @returns {void}
+ */
+function logBookingCompletedEvent(bookingCode) {
+  const search = /** @type {Record<string, string> | null} */ (StorageManager.get('booking_search', null));
+  const flight = /** @type {Record<string, unknown> | null} */ (StorageManager.get('booking_flight', null));
+  const { total } = buildPriceSummary();
+
+  BrazeManager.logCustomEvent('ceb_booking_completed', {
+    booking_code: bookingCode,
+    origin: String(flight?.origin || search?.origin_code || 'MNL'),
+    destination: String(flight?.destination || search?.destination_code || ''),
+    depart_date: String(flight?.depart_date || search?.depart_date || ''),
+    return_date: String(flight?.return_date || search?.return_date || ''),
+    flight_code: String(flight?.flight_code || flight?.flightNumber || ''),
+    price: total,
+  });
+  BrazeManager.requestImmediateDataFlush();
 }
 
 /**
