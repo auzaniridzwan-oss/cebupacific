@@ -202,7 +202,7 @@ class BrazeManagerClass {
 
   /**
    * Set one or more Braze custom user attributes (anonymous or identified).
-   * @param {Record<string, string | number | boolean | string[] | null>} attrs
+   * @param {Record<string, string | number | boolean | string[] | Date | null>} attrs
    * @returns {void}
    */
   setCustomAttributes(attrs) {
@@ -214,7 +214,7 @@ class BrazeManagerClass {
         AppLogger.warn('[SDK]', 'setCustomUserAttribute unavailable');
         this.notify(EVENT_LOGGED, {
           name: 'setCustomUserAttribute',
-          props: { error: 'unavailable', ...attrs },
+          props: { error: 'unavailable', ...serializeAttrProps(attrs) },
           at: Date.now(),
         });
         return;
@@ -222,7 +222,7 @@ class BrazeManagerClass {
       for (const [key, value] of Object.entries(attrs || {})) {
         if (!key) continue;
         user.setCustomUserAttribute(key, value);
-        applied[key] = value;
+        applied[key] = value instanceof Date ? value.toISOString() : value;
         this.logSdkSuccess('setCustomUserAttribute', { key });
       }
       AppLogger.info('[SDK]', 'Braze custom attributes updated', applied);
@@ -231,7 +231,7 @@ class BrazeManagerClass {
     }
     this.notify(EVENT_LOGGED, {
       name: 'setCustomUserAttribute',
-      props: Object.keys(applied).length ? applied : attrs || {},
+      props: Object.keys(applied).length ? applied : serializeAttrProps(attrs),
       at: Date.now(),
     });
   }
@@ -255,3 +255,16 @@ class BrazeManagerClass {
 }
 
 export const BrazeManager = new BrazeManagerClass();
+
+/**
+ * @param {Record<string, unknown> | undefined | null} attrs
+ * @returns {Record<string, unknown>}
+ */
+function serializeAttrProps(attrs) {
+  /** @type {Record<string, unknown>} */
+  const out = {};
+  for (const [key, value] of Object.entries(attrs || {})) {
+    out[key] = value instanceof Date ? value.toISOString() : value;
+  }
+  return out;
+}

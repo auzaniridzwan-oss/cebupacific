@@ -50,6 +50,58 @@ let currentSeatMap = null;
 /** @type {string | null} */
 let selectedSeatId = null;
 
+const BOOKING_ABANDON_MS = 5 * 60 * 1000;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let bookingAbandonTimer = null;
+/** @type {{ origin: string, destination: string, depart: string, return: string } | null} */
+let pendingAbandonProps = null;
+/** Whether an in-progress booking can still emit `ceb_booking_abandoned`. */
+let bookingAbandonArmed = false;
+
+/**
+ * Cancel a pending booking-abandonment timer (e.g. after payment completes).
+ * @returns {void}
+ */
+function clearBookingAbandonTimer() {
+  if (bookingAbandonTimer != null) {
+    clearTimeout(bookingAbandonTimer);
+    bookingAbandonTimer = null;
+  }
+  pendingAbandonProps = null;
+  bookingAbandonArmed = false;
+}
+
+/**
+ * Start/restart the 5-minute abandonment window from flight search start.
+ * @param {{ origin_code: string, destination_code: string, depart_date: string, return_date: string }} search
+ * @returns {void}
+ */
+function scheduleBookingAbandonTimer(search) {
+  clearBookingAbandonTimer();
+  pendingAbandonProps = {
+    origin: search.origin_code,
+    destination: search.destination_code,
+    depart: search.depart_date,
+    return: search.return_date,
+  };
+  bookingAbandonArmed = true;
+  bookingAbandonTimer = setTimeout(() => {
+    bookingAbandonTimer = null;
+    if (!bookingAbandonArmed || !pendingAbandonProps) return;
+    const props = pendingAbandonProps;
+    bookingAbandonArmed = false;
+    pendingAbandonProps = null;
+    BrazeManager.logCustomEvent('ceb_booking_abandoned', {
+      origin: props.origin,
+      destination: props.destination,
+      depart: props.depart,
+      return: props.return,
+    });
+    BrazeManager.requestImmediateDataFlush();
+    AppLogger.info('[SDK]', 'ceb_booking_abandoned fired after inactivity', props);
+  }, BOOKING_ABANDON_MS);
+}
+
 /**
  * @returns {string}
  */
@@ -418,6 +470,7 @@ function bindRouteHandlers() {
       e.preventDefault();
       const code = generateBookingCode();
       StorageManager.set('booking_code', code);
+      clearBookingAbandonTimer();
       syncBookingCustomAttributes();
       AppLogger.info('[UI]', 'Mock payment completed', { code });
       navigate(ROUTES.COMPLETE);
@@ -490,12 +543,25 @@ async function onSearchSubmit(e) {
   currentSeatMap = null;
   selectedSeatId = null;
 
+  const bookingStartedAt = new Date();
+  BrazeManager.setCustomAttributes({
+    ceb_last_booking_started_at: bookingStartedAt,
+  });
+  BrazeManager.logCustomEvent('ceb_booking_started', {
+    origin: payload.origin_code,
+    destination: payload.destination_code,
+    depart: payload.depart_date,
+    return: payload.return_date,
+    started_at: bookingStartedAt.toISOString(),
+  });
   BrazeManager.logCustomEvent('ceb_searched_flight', {
     origin: payload.origin_code,
     destination: payload.destination_code,
     depart: payload.depart_date,
     return: payload.return_date,
   });
+  BrazeManager.requestImmediateDataFlush();
+  scheduleBookingAbandonTimer(payload);
 
   isSearching = true;
   navigate(ROUTES.SEARCH_RESULTS);
