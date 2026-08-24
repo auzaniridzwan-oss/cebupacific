@@ -385,10 +385,36 @@ function bindRouteHandlers() {
       e.preventDefault();
       const code = generateBookingCode();
       StorageManager.set('booking_code', code);
+      syncBookingCustomAttributes();
       AppLogger.info('[UI]', 'Mock payment completed', { code });
       navigate(ROUTES.COMPLETE);
     });
   }
+}
+
+/**
+ * Push booking summary onto the Braze user profile after payment.
+ * @returns {void}
+ */
+function syncBookingCustomAttributes() {
+  const search = /** @type {Record<string, string> | null} */ (StorageManager.get('booking_search', null));
+  const flight = /** @type {Record<string, unknown> | null} */ (StorageManager.get('booking_flight', null));
+  const ancillaries = /** @type {string[]} */ (StorageManager.get('booking_ancillaries', []) || []);
+
+  const origin = String(flight?.origin || search?.origin_code || 'MNL')
+    .trim()
+    .toUpperCase();
+  const destination = String(flight?.destination || search?.destination_code || '')
+    .trim()
+    .toUpperCase();
+
+  BrazeManager.setCustomAttributes({
+    ceb_last_booked_origin: origin,
+    ceb_last_booked_destination: destination,
+    ceb_last_searched_destination: destination,
+    ceb_selected_ancillaries: ancillaries.slice(),
+  });
+  BrazeManager.requestImmediateDataFlush();
 }
 
 /**

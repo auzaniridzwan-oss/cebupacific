@@ -173,6 +173,42 @@ class BrazeManagerClass {
     this.notify(EVENT_LOGGED, { name, props: props || {}, at: Date.now() });
   }
 
+  /**
+   * Set one or more Braze custom user attributes (anonymous or identified).
+   * @param {Record<string, string | number | boolean | string[] | null>} attrs
+   * @returns {void}
+   */
+  setCustomAttributes(attrs) {
+    /** @type {Record<string, unknown>} */
+    const applied = {};
+    try {
+      const user = braze.getUser?.();
+      if (!user || typeof user.setCustomUserAttribute !== 'function') {
+        AppLogger.warn('[SDK]', 'setCustomUserAttribute unavailable');
+        this.notify(EVENT_LOGGED, {
+          name: 'setCustomUserAttribute',
+          props: { error: 'unavailable', ...attrs },
+          at: Date.now(),
+        });
+        return;
+      }
+      for (const [key, value] of Object.entries(attrs || {})) {
+        if (!key) continue;
+        user.setCustomUserAttribute(key, value);
+        applied[key] = value;
+        this.logSdkSuccess('setCustomUserAttribute', { key });
+      }
+      AppLogger.info('[SDK]', 'Braze custom attributes updated', applied);
+    } catch (e) {
+      AppLogger.warn('[SDK]', 'setCustomUserAttribute failed', e);
+    }
+    this.notify(EVENT_LOGGED, {
+      name: 'setCustomUserAttribute',
+      props: Object.keys(applied).length ? applied : attrs || {},
+      at: Date.now(),
+    });
+  }
+
   /** @returns {void} */
   requestImmediateDataFlush() {
     try {
