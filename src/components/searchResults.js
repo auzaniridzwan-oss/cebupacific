@@ -20,11 +20,11 @@ function aircraftLine(f) {
 }
 
 /**
- * @param {{ flights: Array<Record<string, unknown>>, searchSummary: string, usedMock?: boolean, loading?: boolean }} opts
+ * @param {{ flights: Array<Record<string, unknown>>, searchSummary: string, usedMock?: boolean, mockReason?: string, loading?: boolean }} opts
  * @returns {string}
  */
 export function renderSearchResults(opts) {
-  const { flights, searchSummary, usedMock = false, loading = false } = opts;
+  const { flights, searchSummary, usedMock = false, mockReason = '', loading = false } = opts;
 
   if (loading) {
     return `
@@ -99,7 +99,12 @@ export function renderSearchResults(opts) {
     ${
       usedMock
         ? `<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3">
-            Showing demo flight data (live SerpAPI unavailable or returned no 5J results).
+            <p class="font-semibold">Showing demo flight data</p>
+            <p class="mt-1">${
+              mockReason
+                ? String(mockReason)
+                : 'Live SerpAPI unavailable or returned no 5J results.'
+            }</p>
           </div>`
         : ''
     }

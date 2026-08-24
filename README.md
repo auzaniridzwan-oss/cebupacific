@@ -43,11 +43,17 @@ Or run Vite (`npm run dev` on 5173) with `vercel dev` on 3000 — Vite proxies `
 
 ## Deploy
 
-Deploy to Vercel and set environment variables:
+Deploy to Vercel and set environment variables under **Project → Settings → Environment Variables**:
 
-- `VITE_BRAZE_API_KEY`
-- `VITE_BRAZE_SDK_ENDPOINT` (e.g. `sdk.iad-03.braze.com`)
-- `SERPAPI_API_KEY` (server-only)
+| Variable | Environments | Notes |
+|----------|--------------|--------|
+| `VITE_BRAZE_API_KEY` | Production, Preview | Client build — redeploy after changing |
+| `VITE_BRAZE_SDK_ENDPOINT` | Production, Preview | e.g. `sdk.iad-03.braze.com` |
+| `SERPAPI_API_KEY` | Production, Preview | **Server-only** for `/api/serpapi/flights` — do **not** prefix with `VITE_` |
+
+Localhost works because Vite reads `SERPAPI_API_KEY` from `.env.local`. On Vercel that file is not deployed; if the var is missing, `POST /api/serpapi/flights` returns **503** (`SerpAPI proxy not configured`) and the UI falls back to demo flights.
+
+After adding or changing `SERPAPI_API_KEY`, trigger a **Redeploy**. Confirm the Network tab response body includes `"ok": true` (not `configured: false`).
 
 ## Demo routes
 

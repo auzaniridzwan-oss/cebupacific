@@ -169,6 +169,7 @@ function renderApp() {
         StorageManager.get('booking_last_results', []) || []
       );
       const usedMock = !!StorageManager.get('booking_used_mock', false);
+      const mockReason = String(StorageManager.get('booking_mock_reason', '') || '');
       const s = /** @type {{ origin_code: string, destination_code: string, depart_date: string, return_date: string }} */ (
         search
       );
@@ -176,6 +177,7 @@ function renderApp() {
         flights: results,
         searchSummary: `${s.origin_code} → ${s.destination_code} · ${s.depart_date} – ${s.return_date}`,
         usedMock,
+        mockReason,
         loading: isSearching,
       });
       break;
@@ -500,6 +502,14 @@ async function onSearchSubmit(e) {
   const result = await fetchDemoFlights(payload);
   StorageManager.set('booking_last_results', result.rows);
   StorageManager.set('booking_used_mock', !!result.usedMock);
+  if (result.usedMock) {
+    StorageManager.set(
+      'booking_mock_reason',
+      result.error || 'Live SerpAPI unavailable or returned no 5J results.',
+    );
+  } else {
+    StorageManager.remove('booking_mock_reason');
+  }
   isSearching = false;
   renderApp();
 }

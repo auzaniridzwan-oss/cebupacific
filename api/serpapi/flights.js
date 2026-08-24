@@ -14,9 +14,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const key = process.env.SERPAPI_API_KEY;
-  if (!key || !String(key).trim()) {
-    res.status(503).json({ error: 'SerpAPI proxy not configured' });
+  const key = (process.env.SERPAPI_API_KEY || '').trim();
+  if (!key) {
+    console.error(
+      '[SerpAPI] SERPAPI_API_KEY is missing. Set it in Vercel → Project Settings → Environment Variables (Production + Preview), then redeploy.',
+    );
+    res.status(503).json({
+      error: 'SerpAPI proxy not configured',
+      hint: 'Set SERPAPI_API_KEY in Vercel Environment Variables for this deployment environment, then redeploy. Do not use a VITE_ prefix.',
+      configured: false,
+    });
     return;
   }
 
@@ -49,7 +56,7 @@ export default async function handler(req, res) {
     return_date: body.return_date,
   };
 
-  const result = await fetch5jGoogleFlights(String(key).trim(), search);
+  const result = await fetch5jGoogleFlights(key, search);
 
   if (!result.ok) {
     const detail = result.error ? String(result.error).slice(0, 500) : 'unknown';

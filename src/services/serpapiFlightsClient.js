@@ -104,7 +104,7 @@ export async function fetchDemoFlights(bookingPayload) {
       body: JSON.stringify(bookingPayload),
     });
 
-    /** @type {{ ok?: boolean, itineraries?: unknown, error?: string, detail?: string }} */
+    /** @type {{ ok?: boolean, itineraries?: unknown, error?: string, detail?: string, hint?: string }} */
     let data = {};
     try {
       data = await res.json();
@@ -113,6 +113,12 @@ export async function fetchDemoFlights(bookingPayload) {
     }
 
     if (res.status === 503 || !res.ok) {
+      const parts = [
+        typeof data.error === 'string' ? data.error : `HTTP ${res.status}`,
+        typeof data.hint === 'string' ? data.hint : '',
+        typeof data.detail === 'string' ? data.detail : '',
+      ].filter(Boolean);
+      const reason = parts.join(' — ');
       AppLogger.warn('[SDK]', 'SerpAPI unavailable — using mock flights', {
         status: res.status,
         data,
@@ -121,14 +127,19 @@ export async function fetchDemoFlights(bookingPayload) {
         ok: true,
         rows: generateMockFlights(bookingPayload),
         usedMock: true,
-        error: typeof data.error === 'string' ? data.error : `http_${res.status}`,
+        error: reason || `http_${res.status}`,
       };
     }
 
     const itineraries = Array.isArray(data.itineraries) ? data.itineraries : [];
     if (!itineraries.length) {
       AppLogger.warn('[SDK]', 'SerpAPI returned no itineraries — using mock');
-      return { ok: true, rows: generateMockFlights(bookingPayload), usedMock: true };
+      return {
+        ok: true,
+        rows: generateMockFlights(bookingPayload),
+        usedMock: true,
+        error: 'SerpAPI returned no Cebu Pacific (5J) itineraries for this search.',
+      };
     }
 
     const rows = mapItinerariesToResultRows(
