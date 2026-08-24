@@ -5,7 +5,7 @@ import { initHeroCarousel, stopHeroCarousel } from './components/heroCarousel.js
 import { renderSearchResults } from './components/searchResults.js';
 import { renderAncillariesStep } from './components/ancillariesStep.js';
 import { renderSeatMapStep } from './components/seatMapStep.js';
-import { renderPassengerStep } from './components/passengerStep.js';
+import { renderPassengerStep, normalizePassenger } from './components/passengerStep.js';
 import { renderPaymentStep } from './components/paymentStep.js';
 import { renderCompleteStep } from './components/completeStep.js';
 import { renderLoginModal } from './components/loginModal.js';
@@ -198,13 +198,16 @@ function renderApp() {
         StorageManager.get('booking_passenger', null)
       );
       const sess = getUserSession();
-      main = renderPassengerStep({
-        passenger: passenger || {
-          fullName: sess ? `${sess.firstName || ''} ${sess.lastName || ''}`.trim() : '',
+      const defaults = normalizePassenger(
+        passenger || {
+          firstName: sess?.firstName || '',
+          lastName: sess?.lastName || '',
           email: sess?.email || '',
-          nationality: 'PH',
+          phone: sess?.phone || '',
+          nationality: sess?.nationality || 'PH',
         },
-      });
+      );
+      main = renderPassengerStep({ passenger: defaults });
       break;
     }
     case ROUTES.PAYMENT: {
@@ -361,12 +364,40 @@ function bindRouteHandlers() {
       e.preventDefault();
       const form = /** @type {HTMLFormElement} */ (e.target);
       const fd = new FormData(form);
-      StorageManager.set('booking_passenger', {
-        fullName: String(fd.get('fullName') || '').trim(),
-        email: String(fd.get('email') || '').trim(),
-        phone: String(fd.get('phone') || '').trim(),
-        nationality: String(fd.get('nationality') || 'PH'),
+      const errEl = document.getElementById('passenger-form-error');
+      const firstName = String(fd.get('firstName') || '').trim();
+      const lastName = String(fd.get('lastName') || '').trim();
+      const email = String(fd.get('email') || '')
+        .trim()
+        .toLowerCase();
+      const phone = String(fd.get('phone') || '').trim();
+      const nationality = String(fd.get('nationality') || 'PH').trim() || 'PH';
+
+      if (!email || !email.includes('@')) {
+        if (errEl) {
+          errEl.textContent = 'Enter a valid email to continue.';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+      if (!firstName || !lastName) {
+        if (errEl) {
+          errEl.textContent = 'Enter first and last name.';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const passenger = { firstName, lastName, email, phone, nationality };
+      StorageManager.set('booking_passenger', passenger);
+
+      persistAuthSession(email, 'passenger', passenger);
+      BrazeManager.login(email, passenger);
+      BrazeManager.requestImmediateDataFlush();
+      AppLogger.info('[AUTH]', 'Passenger identified in Braze', {
+        emailPreview: BrazeManager.maskExternalId(email),
       });
+
       navigate(ROUTES.PAYMENT);
     });
   }

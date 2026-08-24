@@ -20,8 +20,8 @@ export function getPersistedExternalId() {
 
 /**
  * @param {string} externalId
- * @param {'login' | 'registration'} source
- * @param {{ firstName?: string, lastName?: string, email?: string } } [profile]
+ * @param {'login' | 'registration' | 'passenger'} source
+ * @param {{ firstName?: string, lastName?: string, email?: string, phone?: string, nationality?: string }} [profile]
  * @returns {void}
  */
 export function persistAuthSession(externalId, source, profile = {}) {
@@ -34,16 +34,20 @@ export function persistAuthSession(externalId, source, profile = {}) {
     firstName: profile.firstName || '',
     lastName: profile.lastName || '',
     email: profile.email || id,
+    phone: profile.phone || '',
+    nationality: profile.nationality || '',
   });
 }
 
 /**
- * @returns {{ external_id: string, firstName?: string, lastName?: string, email?: string } | null}
+ * @returns {{ external_id: string, firstName?: string, lastName?: string, email?: string, phone?: string, nationality?: string } | null}
  */
 export function getUserSession() {
   const session = StorageManager.get('user_session', null);
   if (session && typeof session === 'object' && /** @type {{ external_id?: string }} */ (session).external_id) {
-    return /** @type {{ external_id: string, firstName?: string, lastName?: string, email?: string }} */ (session);
+    return /** @type {{ external_id: string, firstName?: string, lastName?: string, email?: string, phone?: string, nationality?: string }} */ (
+      session
+    );
   }
   return null;
 }

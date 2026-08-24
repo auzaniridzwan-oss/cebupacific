@@ -103,23 +103,42 @@ class BrazeManagerClass {
   }
 
   /**
+   * Identify the user (changeUser) and set standard + custom profile fields.
    * @param {string} externalId
-   * @param {{ firstName?: string, lastName?: string, email?: string }} [profile]
+   * @param {{ firstName?: string, lastName?: string, email?: string, phone?: string, nationality?: string }} [profile]
    * @returns {void}
    */
   login(externalId, profile = {}) {
+    const id = String(externalId || '').trim();
+    if (!id) {
+      AppLogger.warn('[AUTH]', 'Braze login skipped — empty external id');
+      return;
+    }
     try {
       if (typeof braze.changeUser === 'function') {
-        braze.changeUser(externalId);
-        this.logSdkSuccess('changeUser', { externalIdPreview: this.maskExternalId(externalId) }, '[AUTH]');
+        braze.changeUser(id);
+        this.logSdkSuccess('changeUser', { externalIdPreview: this.maskExternalId(id) }, '[AUTH]');
+        this.notify(EVENT_LOGGED, {
+          name: 'changeUser',
+          props: {
+            external_id: id,
+            email: profile.email || id,
+            first_name: profile.firstName || '',
+            last_name: profile.lastName || '',
+            phone: profile.phone || '',
+            nationality: profile.nationality || '',
+          },
+          at: Date.now(),
+        });
       }
       braze.openSession();
-      this.logSdkSuccess('openSession', { externalIdPreview: this.maskExternalId(externalId) }, '[AUTH]');
+      this.logSdkSuccess('openSession', { externalIdPreview: this.maskExternalId(id) }, '[AUTH]');
 
       const user = braze.getUser?.();
       if (user) {
-        if (profile.email && typeof user.setEmail === 'function') {
-          user.setEmail(profile.email.trim().toLowerCase());
+        const email = (profile.email || id).trim().toLowerCase();
+        if (email && typeof user.setEmail === 'function') {
+          user.setEmail(email);
           this.logSdkSuccess('setEmail');
         }
         if (profile.firstName && typeof user.setFirstName === 'function') {
@@ -130,9 +149,17 @@ class BrazeManagerClass {
           user.setLastName(profile.lastName.trim());
           this.logSdkSuccess('setLastName');
         }
+        if (profile.phone && typeof user.setPhoneNumber === 'function') {
+          user.setPhoneNumber(profile.phone.trim());
+          this.logSdkSuccess('setPhoneNumber');
+        }
+        if (profile.nationality && typeof user.setCustomUserAttribute === 'function') {
+          user.setCustomUserAttribute('nationality', profile.nationality.trim());
+          this.logSdkSuccess('setCustomUserAttribute', { key: 'nationality' });
+        }
       }
       AppLogger.info('[AUTH]', 'Braze login / session opened', {
-        externalIdPreview: this.maskExternalId(externalId),
+        externalIdPreview: this.maskExternalId(id),
       });
     } catch (e) {
       AppLogger.warn('[AUTH]', 'Braze login failed', e);
